@@ -20,7 +20,10 @@ class Course extends Model
         'description',
         'status',
         'price',
+        'course_image'
     ];
+
+    protected $appends = ['course_image_url']; //always return a course image url for get course collection
 
     /**
      * Relationships (if needed)
@@ -42,5 +45,10 @@ class Course extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
+    }
+
+    
+    public function getCourseImageUrlAttribute () {
+        return $this->course_image ? asset('storage/' . $this->course_image) : null;
     }
 }

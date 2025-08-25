@@ -10,12 +10,12 @@ use Illuminate\Support\Facades\Validator;
 class SubjectController extends Controller
 {
     /**
-     * Display a list of all subjects.
+     * Display a list of all published subjects.
      */
     public function index()
     {
-        $subjects = Subject::latest()->get();
-        return response()->json($subjects, 200);
+        $subjects = Subject::where('status', 'published')->latest()->get();
+        return response()->json([$subjects, 'length' => count($subjects)], 200);
     }
 
     /**
@@ -30,7 +30,7 @@ class SubjectController extends Controller
             'tutors_assignees' => 'nullable|array',
             'departments' => 'nullable|array',
             'created_by' => 'required|exists:staffs,id',
-            'status' => 'in:active,inactive',
+            'status' => 'in:published,draft,archived',
         ]);
 
         if ($validator->fails()) {
@@ -45,7 +45,7 @@ class SubjectController extends Controller
             'tutors_assignees' => $request->tutors_assignees ?? [],
             'departments' => $request->departments ?? [],
             'created_by' => $request->created_by,
-            'status' => $request->status ?? 'active',
+            'status' => $request->status ?? 'draft',
         ]);
 
         return response()->json([
@@ -55,11 +55,11 @@ class SubjectController extends Controller
     }
 
     /**
-     * Show a specific subject.
+     * Show a specific published subject.
      */
     public function show($id)
     {
-        $subject = Subject::find($id);
+        $subject = Subject::where('id', $id)->where('status', 'published')->first();
 
         if (!$subject) {
             return response()->json(['message' => 'Subject not found.'], 404);
@@ -85,7 +85,7 @@ class SubjectController extends Controller
             'courses_ids'      => 'nullable|array',
             'tutors_assignees'  => 'nullable|array',
             'departments'       => 'nullable|array',
-            'status'            => 'in:active,inactive',
+            'status'            => 'in:published,draft,archived',
         ]);
 
         if ($validator->fails()) {

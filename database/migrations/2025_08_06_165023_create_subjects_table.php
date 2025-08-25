@@ -24,7 +24,7 @@ return new class extends Migration {
             // Link to the staff who created the course
             $table->foreignId('created_by')->constrained('staffs')->onDelete('cascade');
 
-            $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->enum('status', ['published', 'draft', 'archived'])->default('draft');
             $table->softDeletes();
             $table->timestamps();
         });

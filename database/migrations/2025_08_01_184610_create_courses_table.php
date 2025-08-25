@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('name'); // WAEC, JAMB, etc.
             $table->string('slug')->unique(); // waec, jamb
             $table->text('description')->nullable();
+            $table->string('course_image')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->decimal('price', 10, 2)->default(0.00); // optional
             $table->softDeletes();

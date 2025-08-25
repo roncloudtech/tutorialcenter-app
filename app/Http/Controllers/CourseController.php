@@ -6,6 +6,7 @@ use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Storage;
 
 class CourseController extends Controller
 {
@@ -28,6 +29,7 @@ class CourseController extends Controller
             'name' => 'required|string|max:255|unique:courses,name',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
+            'course_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         if ($validator->fails()) {
@@ -36,6 +38,7 @@ class CourseController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+        
         // Create the course
         try {
             $existingCourse = Course::where('name', $request->name)->first();
@@ -44,6 +47,11 @@ class CourseController extends Controller
                     'message' => "Course with this $request->name already exists.",
                 ], 422);
             }
+            
+            // Handle course image upload
+            if ($request->hasFile('course_image')) {
+                $courseImagePath = $request->file('course_image')->store('courses', 'public');
+            }
 
             $course = Course::create([
                 'name' => $request->name,
@@ -51,6 +59,7 @@ class CourseController extends Controller
                 'description' => $request->description,
                 'status' => 'active',
                 'price' => $request->price ?? 0.00,
+                'course_image' => $courseImagePath ?? null,
             ]);
 
             return response()->json([
@@ -88,7 +97,18 @@ class CourseController extends Controller
             'description' => 'nullable|string',
             'status' => 'in:active,inactive',
             'price' => 'nullable|numeric|min:0',
+            'course_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
+
+        if ($request->hasFile('course_image')) {
+            // Delete old image from storage if it exists
+            if ($course->course_image && Storage::disk('public')->exists($course->course_image)) {
+                Storage::disk('public')->delete($course->course_image);
+            }
+
+            // Store new image
+            $courseImagePath = $request->file('course_image')->store('courses', 'public');
+        }
 
         $course->update([
             'name' => $request->name ?? $course->name,
@@ -96,6 +116,7 @@ class CourseController extends Controller
             'description' => $request->description ?? $course->description,
             'status' => $request->status ?? $course->status,
             'price' => $request->price ?? $course->price,
+            'course_image' => $courseImagePath ?? $course->course_image,
         ]);
 
         return response()->json([
