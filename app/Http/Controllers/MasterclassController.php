@@ -21,24 +21,31 @@ class MasterclassController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'subject_id' => 'required|exists:subjects,id',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'assignees_id' => 'nullable|array',
-        ]);
+        try {
+            $validated = $request->validate([
+                'subject_id' => 'required|exists:subjects,id',
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'assignees_id' => 'nullable|array',
+            ]);
+            $masterclass = Masterclass::create([
+                'subject_id' => $validated['subject_id'],
+                'title' => $validated['title'],
+                'description' => $validated['description'] ?? null,
+                'assignees_id' => $validated['assignees_id'] ?? [],
+            ]);
 
-        $masterclass = Masterclass::create([
-            'subject_id' => $validated['subject_id'],
-            'title' => $validated['title'],
-            'description' => $validated['description'] ?? null,
-            'assignees_id' => $validated['assignees_id'] ?? [],
-        ]);
+            return response()->json([
+                'message' => 'Masterclass created successfully',
+                'masterclass' => $masterclass,
+            ], 201);
+        } catch (\Exception $error) {
+            return response()->json([
+                'message' => 'Server Error',
+                'error' => $error->getMessage(),
+            ], 500);
+        }
 
-        return response()->json([
-            'message' => 'Masterclass created successfully',
-            'data' => $masterclass,
-        ], 201);
     }
 
     /**
@@ -68,7 +75,7 @@ class MasterclassController extends Controller
         return response()->json([
             'message' => 'Masterclass updated successfully',
             'data' => $masterclass,
-        ]);
+        ], 200);
     }
 
     /**
