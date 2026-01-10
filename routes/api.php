@@ -19,36 +19,47 @@ use App\Http\Controllers\MasterclassScheduleController;
 
 // Student API Routes
 Route::prefix('students')->group(function () {
-    Route::get('/', [StudentController::class, 'index']); // List all students
-    Route::post('/register', [StudentController::class, 'store']); // Create a new student
-    Route::post('/verify', [StudentController::class, 'verify']); // Email Verification
-    Route::get('{student}', [StudentController::class, 'show']); // Show specific student
-    Route::put('{student}', [StudentController::class, 'update']); // Update a student
-    Route::delete('{student}', [StudentController::class, 'destroy']); // Delete a student
-    Route::patch('/resend-code', [StudentController::class, 'resendCode']); //resend verification code
-    Route::post('/{id}/profile-picture', [StudentController::class, 'updateProfilePicture']); // update student profile pic.
-    Route::get('/{id}/courses-subjects', [StudentController::class, 'getStudentCoursesAndSubjects']); // gets student enrolled courses and subjects
 
-
+    // ---------- Public Routes ---------- //
     Route::post('login', [StudentController::class, 'login']); // Login student
-    Route::post('/enroll', [StudentController::class, 'enroll']); //student enroll in a course
-
-
+    Route::post('/verify', [StudentController::class, 'verify']); // Email Verification
+    Route::post('/register', [StudentController::class, 'store']); // Create a new student
+    Route::patch('/resend-code', [StudentController::class, 'resendCode']); //resend verification code
     Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogleStudent']);  //student login or register using google auth
+
+    // ---------- Protected Routes (for authenticated students) ---------- //
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/', [StudentController::class, 'index']); // List all students
+        Route::post('logout', [StudentController::class, 'logout']); // Logout student
+        Route::put('{student}', [StudentController::class, 'update']); // Update a student
+        Route::get('{student}', [StudentController::class, 'show']); // Show specific student
+        Route::delete('{student}', [StudentController::class, 'destroy']); // Delete a student
+        Route::post('/enroll', [StudentController::class, 'enroll']); //student enroll in a course
+        Route::post('/{id}/profile-picture', [StudentController::class, 'updateProfilePicture']); // update student profile pic.
+        Route::get('/{id}/courses-subjects', [StudentController::class, 'getStudentCoursesAndSubjects']); // gets student enrolled courses and subjects
+    });
+
 });
 
 // Guardian API Routes
 Route::prefix('guardians')->group(function () {
-    Route::get('/', [GuardianController::class, 'index']);            // List all guardians
-    Route::post('/register', [GuardianController::class, 'store']);           // Create a new guardian
+    
+    // ---------- Public Routes ---------- //
+    Route::post('/login', [GuardianController::class, 'login']);  // Guardian login
     Route::post('/verify', [GuardianController::class, 'verify']); // Email Verification
-    Route::get('/{guardian}', [GuardianController::class, 'show']);   // Show single guardian
-    Route::put('/{guardian}', [GuardianController::class, 'update']); // Update guardian
-    Route::delete('/{guardian}', [GuardianController::class, 'destroy']); // Delete guardian
-    Route::post('/login', [GuardianController::class, 'login']);      // Guardian login
+    Route::post('/register', [GuardianController::class, 'store']); // Create a new guardian
     Route::patch('/resend-code', [GuardianController::class, 'resendCode']); //resend verification code
-
     Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogleGuardian']);  //gurdian login or register using google auth(redirect to google)
+
+    // ---------- Protected Routes (for authenticated guardians) ---------- //
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/', [GuardianController::class, 'index']); // List all guardians
+        Route::post('/logout', [GuardianController::class, 'logout']);  // Guardian logout
+        Route::put('/{guardian}', [GuardianController::class, 'update']); // Update guardian
+        Route::delete('/{guardian}', [GuardianController::class, 'destroy']); // Delete guardian
+        Route::get('/{guardian}', [GuardianController::class, 'show']);   // Show single guardian
+    });
+
 });
 
 // student and guardian Shared google callback(callback url in google console need to be changed to api for this to work)
