@@ -211,6 +211,7 @@ class GuardianController extends Controller
                 ], 500);
             }
 
+            $guardian->tokens()->delete();
             $token = $guardian->createToken('guardian-token')->plainTextToken;
 
             return response()->json([
@@ -277,6 +278,12 @@ class GuardianController extends Controller
         return response()->json([
             'message' => 'Verification code resent successfully'
         ]);
+    }
+
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()?->delete();
+        return response()->noContent();
     }
 
 }

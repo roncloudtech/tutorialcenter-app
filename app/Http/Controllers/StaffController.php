@@ -121,7 +121,7 @@ class StaffController extends Controller
             return response()->json(['errors' => $validator->errors()], 400);
         }
 
-          $credentials = $request->only('email', 'password');
+        $credentials = $request->only('email', 'password');
 
         if (Auth::guard('staff')->attempt($credentials)) {
             $staff = Auth::guard('staff')->user();
@@ -133,6 +133,7 @@ class StaffController extends Controller
                 ], 500);
             }
 
+            $staff->tokens()->delete();
             $token = $staff->createToken('staff-token')->plainTextToken;
 
             return response()->json([
@@ -286,18 +287,8 @@ class StaffController extends Controller
      */
     public function logout(Request $request)
     {
-        $staff = Auth::guard('staff')->user();
-
-        if ($staff) {
-            $staff->tokens()->delete(); // revoke all tokens
-            return response()->json([
-                'message' => 'Logout successful.',
-            ], 200);
-        }
-
-        return response()->json([
-            'message' => 'Not authenticated.',
-        ], 401);
+        $request->user()->currentAccessToken()?->delete();
+        return response()->noContent();
     }
 }
 

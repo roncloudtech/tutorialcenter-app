@@ -6,6 +6,7 @@ use App\Mail\StudentEmailVerification;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use App\Services\TermiiService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -217,7 +218,7 @@ class StudentController extends Controller
             'phone' => 'nullable|string|unique:students,phone,' . $student->id,
             'password' => 'nullable|string|min:6',
             'gender' => 'nullable|in:male,female,others',
-            'profile_picture' => 'nullable|string',
+            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048',
             'date_of_birth' => 'nullable|date',
             'location' => 'nullable|string',
             'home_address' => 'nullable|string',
@@ -226,6 +227,18 @@ class StudentController extends Controller
         ]);
 
         try {
+            // Handle profile picture upload if provided
+            if ($request->hasFile('profile_picture')) {
+                // Delete old profile picture if it exists
+                if ($student->profile_picture && Storage::disk('public')->exists($student->profile_picture)) {
+                    Storage::disk('public')->delete($student->profile_picture);
+                }
+
+                // Store new image
+                $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+                $data['profile_picture'] = $path;
+            }
+            
             // Update student
             $student->update($data);
             return response()->json(
@@ -268,30 +281,44 @@ class StudentController extends Controller
      */
     public function login(Request $request)
     {
-        $data = $request->validate([
-            'identifier' => 'required|email',
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
             'password' => 'required|string',
         ]);
 
-        try {
-            $student = Student::where('email', $data['identifier'])->orWhere('phone', $data['identifier'])->first();
-    
-            // Check if the student has verified their email or phone
-            if ($student->email_verified_at == null && $student->phone_verified_at == null && $student->verified == 0) {
-                return response()->json(['message' => 'Email or Phone not verified'], 401);
-            }
-    
-            // Check if the student exists and the password matches
-            if (!$student || !Hash::check($data['password'], $student->password)) {
-                return response()->json(['message' => 'Invalid credentials'], 401);
-            }
-    
-            // Generate token or handle authentication as needed
-            return response()->json(['message' => 'Login successful', 'student' => $student], 200);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'An error occurred during login', 'error' => $e->getMessage()], 500);
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors()
+            ], 400);
         }
 
+        $credentials = $request->only('email', 'password');
+
+        if (Auth::guard('student')->attempt($credentials)) {
+
+            $student = Auth::guard('student')->user();
+
+            // Safety check
+            if (!$student || !$student->id) {
+                return response()->json([
+                    'message' => 'Something went wrong, user not authenticated properly.'
+                ], 500);
+            }
+
+            $student->tokens()->delete();
+            // generate token
+            $token = $student->createToken('student-token')->plainTextToken;
+
+            return response()->json([
+                'message' => 'Login successful',
+                'student' => $student,
+                'student-token' => $token,
+            ], 200);
+        }
+
+        return response()->json([
+            'message' => 'Invalid email or password'
+        ], 401);
     }
 
     // resending email verification code
@@ -430,6 +457,13 @@ class StudentController extends Controller
             'message' => 'Profile picture updated successfully',
             'profile_picture_url' => asset('storage/' . $path),
         ], 200);
+    }
+
+
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()?->delete();
+        return response()->noContent();
     }
 
 }
