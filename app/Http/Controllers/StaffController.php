@@ -150,7 +150,7 @@ class StaffController extends Controller
             // ));
 
 
-            event(new \App\Events\UserActivityEvent(
+            event(new UserActivityEvent(
                 actor: $staff,
                 action: 'login',
                 description: "({$staff->staff_role}) {$staff->email} logged in successfully"
