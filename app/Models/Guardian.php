@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class Guardian extends Authenticatable
 {
@@ -53,6 +52,10 @@ class Guardian extends Authenticatable
         if ($value) {
             $this->attributes['password'] = bcrypt($value);
         }
+    }
+
+    public function auditLogs() {
+        return $this->morphMany(AuditLog::class, 'actor');
     }
 
 }

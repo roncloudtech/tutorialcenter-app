@@ -68,4 +68,7 @@ class Student extends Authenticatable
         return $this->hasMany(Payment::class);
     }
 
+    public function auditLogs() {
+        return $this->morphMany(AuditLog::class, 'actor');
+    }
 }
