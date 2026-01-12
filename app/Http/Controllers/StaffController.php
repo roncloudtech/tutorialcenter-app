@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\AuditLogger;
 use App\Models\AuditLog;
 use Carbon\Carbon;
 use App\Models\Staff;
@@ -140,17 +141,12 @@ class StaffController extends Controller
             $token = $staff->createToken('staff-token')->plainTextToken;
 
 
-            // testing the auditlog
-            AuditLog::create([
-                'actor_id' => $staff->id,
-                'actor_type' => get_class($staff), // App\Models\Staff
-                'action' => 'login',
-
-                'description' => "($staff->staff_role) $staff->email logged in successfully",
-
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-            ]);
+            // Using the right logger to log staff login activity
+            AuditLogger::log(
+                actor: $staff,
+                action: 'login',
+                description: "({$staff->staff_role}) {$staff->email} logged in successfully"
+            );
 
             return response()->json([
                 'message' => 'Login successful',
