@@ -10,7 +10,11 @@ class AuditLog extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'actor_id',
+        'actor_type',
         'action',
+        'subject_id',
+        'subject_type',
         'description',
         'ip_address',
         'user_agent',

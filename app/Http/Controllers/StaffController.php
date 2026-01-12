@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use Carbon\Carbon;
 use App\Models\Staff;
 use Illuminate\Http\Request;
@@ -15,8 +16,8 @@ use Illuminate\Support\Facades\Validator;
 class StaffController extends Controller
 {
     /**
-    * Store a newly created staff in storage.
-    **/
+     * Store a newly created staff in storage.
+     **/
     public function store(Request $request)
     {
         // Validate request data
@@ -110,8 +111,8 @@ class StaffController extends Controller
     }
 
     /** 
-    * staff login method
-    **/
+     * staff login method
+     **/
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -138,6 +139,19 @@ class StaffController extends Controller
             $staff->tokens()->delete();
             $token = $staff->createToken('staff-token')->plainTextToken;
 
+
+            // testing the auditlog
+            AuditLog::create([
+                'actor_id' => $staff->id,
+                'actor_type' => get_class($staff), // App\Models\Staff
+                'action' => 'login',
+
+                'description' => "($staff->staff_role) $staff->email logged in successfully",
+
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+
             return response()->json([
                 'message' => 'Login successful',
                 'staff' => $staff,
@@ -149,8 +163,8 @@ class StaffController extends Controller
     }
 
     /** 
-    * Update Staff Info
-    **/
+     * Update Staff Info
+     **/
     public function update(Request $request, Staff $staff)
     {
         // Validate incoming data
@@ -185,9 +199,10 @@ class StaffController extends Controller
     }
 
     /** 
-    * Show staffs
-    **/
-    public function show() {
+     * Show staffs
+     **/
+    public function show()
+    {
         $staffs = Staff::all();
         return response()->json([
             'staffs' => $staffs
@@ -198,7 +213,7 @@ class StaffController extends Controller
      * ========================
      * Forgot Password
      * ========================
-    */
+     */
     public function forgotPassword(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -255,25 +270,25 @@ class StaffController extends Controller
         }
         try {
             $resetRecord = DB::table('password_reset_tokens')->where('email', $request->email)->first();
-    
+
             if (!$resetRecord) {
                 return response()->json(['message' => 'Invalid token or email.'], 400);
             }
-    
+
             // Verify token
             if (!Hash::check($request->token, $resetRecord->token)) {
                 return response()->json(['message' => 'Invalid or expired token.'], 400);
             }
-    
+
             // Update staff password
             $staff = Staff::where('email', $request->email)->first();
             $staff->password = Hash::make($request->password);
             $staff->email_verified_at = now();
             $staff->save();
-    
+
             // Delete reset record
             DB::table('password_reset_tokens')->where('email', $request->email)->delete();
-    
+
             return response()->json([
                 'message' => 'Password reset successfully.',
                 'staff' => $staff
@@ -281,8 +296,8 @@ class StaffController extends Controller
         } catch (\Exception $errors) {
             return response()->json([
                 'errors' => $errors->getMessage(),
-                'message' => 'Server Error Occurred',  
-            ],500);
+                'message' => 'Server Error Occurred',
+            ], 500);
         }
     }
 
@@ -290,7 +305,7 @@ class StaffController extends Controller
      * ========================
      * Logout
      * ========================
-    **/
+     **/
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()?->delete();

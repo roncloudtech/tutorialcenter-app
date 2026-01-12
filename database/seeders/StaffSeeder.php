@@ -4,15 +4,13 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Staff;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Carbon;
 use Faker\Factory as Faker;
 
 class StaffSeeder extends Seeder
 {
     public function run(): void
     {
-        $defaultPassword = Hash::make('Qwertyuiop@1');
+        $defaultPassword = 'Qwertyuiop@1';
         $faker = Faker::create();
 
         $staffs = [
