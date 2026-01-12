@@ -15,8 +15,8 @@ use Illuminate\Support\Facades\Validator;
 class StaffController extends Controller
 {
     /**
-     * Store a newly created staff in storage.
-     */
+    * Store a newly created staff in storage.
+    **/
     public function store(Request $request)
     {
         // Validate request data
@@ -109,7 +109,9 @@ class StaffController extends Controller
         }
     }
 
-    //staff login method
+    /** 
+    * staff login method
+    **/
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -146,7 +148,9 @@ class StaffController extends Controller
         return response()->json(['message' => 'Invalid email or password'], 401);
     }
 
-    // Update Staff Info
+    /** 
+    * Update Staff Info
+    **/
     public function update(Request $request, Staff $staff)
     {
         // Validate incoming data
@@ -180,7 +184,9 @@ class StaffController extends Controller
         }
     }
 
-    // Show staffs
+    /** 
+    * Show staffs
+    **/
     public function show() {
         $staffs = Staff::all();
         return response()->json([
@@ -284,7 +290,7 @@ class StaffController extends Controller
      * ========================
      * Logout
      * ========================
-     */
+    **/
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()?->delete();
