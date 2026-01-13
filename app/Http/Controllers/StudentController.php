@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\UserActivityEvent;
+use App\Helpers\NotificationManager;
 use App\Mail\StudentEmailVerification;
 use App\Models\Student;
 use Illuminate\Http\Request;
@@ -18,96 +19,6 @@ class StudentController extends Controller
     /**
      * Store a newly created student in storage.
      */
-    // public function store(Request $request, TermiiService $termii)
-    // {
-    //     // 1️⃣ Validation
-    //     $validator = Validator::make($request->all(), [
-    //         'firstname' => 'required|string|max:255',
-    //         'lastname' => 'required|string|max:255',
-    //         'email' => 'nullable|email|unique:students,email',
-    //         'phone' => 'nullable|string|unique:students,phone',
-    //         'password' => 'required|string|min:8',
-    //         'gender' => 'nullable|string|in:Male,Female,Others',
-    //         'profile_picture' => 'nullable|string',
-    //         'date_of_birth' => 'nullable|date',
-    //         'location' => 'nullable|string',
-    //         'home_address' => 'nullable|string',
-    //         'department' => 'nullable|string',
-    //         'guardians_ids' => 'nullable|array',
-    //     ]);
-
-    //     if (!$request->email && !$request->phone) {
-    //         return response()->json([
-    //             'message' => 'Email or Phone is required.'
-    //         ], 422);
-    //     }
-
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'errors' => $validator->errors()
-    //         ], 400);
-    //     }
-
-    //     try {
-    //         // 2️⃣ Create the student
-    //         $verification_code = rand(100000, 999999);
-    //         $student = new Student;
-    //         $student->firstname = $request->input('firstname');
-    //         $student->lastname = $request->input('lastname');
-    //         $student->email = $request->input('email');
-    //         $student->phone = $request->input('phone');
-    //         $student->password = $request->input('password');
-    //         if($request->has('gender')) {
-    //             $student->gender = $request->input('gender');
-    //         }
-    //         $student->profile_picture = $request->input('profile_picture', null);
-    //         $student->date_of_birth = $request->input('date_of_birth', null);
-    //         $student->location = $request->input('location', null);
-    //         $student->home_address = $request->input('home_address', null);
-    //         $student->department = $request->input('department', null);
-    //         $student->guardians_ids = $request->input('guardians_ids', []);
-    //         $student->verification_code = $verification_code;
-
-    //         // ✅ Save first to get ID
-    //         $student->save();
-
-    //         // 3️⃣ Send verification code
-    //         if ($student->email) {
-    //             Mail::to($student->email)->send(new StudentEmailVerification($student));
-    //         } elseif ($student->phone) {
-    //             $smsResponse = $termii->sendSms(
-    //                 $student->phone,
-    //                 "Your verification code is $verification_code"
-    //             );
-
-    //             \Log::info('Termii SMS response', [
-    //                 'phone' => $student->phone,
-    //                 'response' => $smsResponse
-    //             ]);
-    //         }
-
-    //         // 4️⃣ Fire the event (audit + notification)
-    //         event(new UserActivityEvent(
-    //             actor: $student,
-    //             action: 'student_registered',
-    //             subject: $student,
-    //             description: "New student registered: {$student->firstname} {$student->lastname}"
-    //         ));
-
-    //         // 5️⃣ Return response
-    //         return response()->json([
-    //             'message' => 'Verification code sent.',
-    //             'student' => $student,
-    //         ], 201);
-
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'errors' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
-
-
     public function store(Request $request, TermiiService $termii)
     {
         // Validation Student Registration
@@ -148,7 +59,7 @@ class StudentController extends Controller
             $student->email = $request->input('email');
             $student->phone = $request->input('phone');
             $student->password = $request->input('password');
-            if($request->has('gender')) {
+            if ($request->has('gender')) {
                 $student->gender = $request->input('gender');
             }
             $student->profile_picture = $request->input('profile_picture');
@@ -162,8 +73,10 @@ class StudentController extends Controller
 
             // Send verification code
             if ($request->email) {
+                $identifier = $request->email;
                 Mail::to($student->email)->send(new StudentEmailVerification($student));
             } else if ($request->phone) {
+                $identifier = $request->phone;
                 $smsResponse = $termii->sendSms($student->phone, "Your verification code is $verification_code");
 
                 \Log::info('Termii SMS response', [
@@ -177,7 +90,7 @@ class StudentController extends Controller
                 actor: $student,
                 action: 'student_registered',
                 subject: $student,
-                description: "New student registered: {$student->firstname} {$student->lastname}, {$student->email}"
+                description: "New student registered: {$student->firstname} {$student->lastname}, {$identifier}",
             ));
 
             return response()->json([
@@ -191,21 +104,12 @@ class StudentController extends Controller
         }
     }
 
-
     /*
-     ****
+     * Email Verification
      */
-
-
-
-
-
-
-
-
-    // Email Verification
     public function verify(Request $request)
     {
+        // 1️⃣ Validate input
         $validator = Validator::make($request->all(), [
             'identifier' => 'required', // email or phone
             'code' => 'required',
@@ -218,46 +122,51 @@ class StudentController extends Controller
         }
 
         try {
-            $user = Student::where('email', $request->identifier)
+            // 2️⃣ Find student by email or phone
+            $student = Student::where('email', $request->identifier)
                 ->orWhere('phone', $request->identifier)
                 ->first();
-            if (!$user) {
+
+            if (!$student) {
                 return response()->json([
-                    'message' => $request->identifier . ' do not exist',
+                    'message' => $request->identifier . ' does not exist',
                 ], 400);
-            } else if ($user->verification_code !== $request->code) {
+            }
+
+            if ($student->verification_code !== $request->code) {
                 return response()->json([
                     'message' => $request->code . ' is not valid',
                 ], 400);
             }
 
-            if ($user->email && $user->email === $request->identifier) {
-                Student::where('email', $user->email)->update([
-                    'email_verified_at' => now(),
-                    'verification_code' => null,
-                    'verified' => 1,
-                ]);
-            }
-            if ($user->phone && $user->phone === $request->identifier) {
-                Student::where('phone', $user->phone)->update([
-                    'email_verified_at' => now(),
-                    'verification_code' => null,
-                ]);
-            }
-            $user->save();
+            // 3️⃣ Mark verified
+            $student->email_verified_at = now();
+            $student->verification_code = null;
+            $student->verified = 1;
+            $student->save();
+
+            // 4️⃣ Fire event for audit log + notifications
+            event(new UserActivityEvent(
+                actor: $student,
+                action: 'student_verified',
+                subject: $student,
+                description: "Student verified: {$student->firstname} {$student->lastname}, {$student->email}",
+            ));
 
             return response()->json([
                 'message' => 'Verified successfully.',
             ], 200);
+
         } catch (\Exception $error) {
             return response()->json([
-                'errors' => $error,
+                'errors' => $error->getMessage(),
             ], 500);
         }
-
     }
 
-    // Phone Number Verification
+    /*
+     * Phone Number Verification
+     */
     public function sendPhoneVerification(Request $request, TermiiService $termii)
     {
         $request->validate(['phone' => 'required|string']);
@@ -318,10 +227,11 @@ class StudentController extends Controller
 
     /**
      * Update the specified student in storage.
-     */
+     **/
+
     public function update(Request $request, Student $student)
     {
-        // Validate incoming data
+        // 1️⃣ Validate incoming data
         $data = $request->validate([
             'firstname' => 'nullable|string|max:255',
             'lastname' => 'nullable|string|max:255',
@@ -338,27 +248,59 @@ class StudentController extends Controller
         ]);
 
         try {
-            // Handle profile picture upload if provided
+            // 2️⃣ Handle profile picture upload
             if ($request->hasFile('profile_picture')) {
-                // Delete old profile picture if it exists
                 if ($student->profile_picture && Storage::disk('public')->exists($student->profile_picture)) {
                     Storage::disk('public')->delete($student->profile_picture);
                 }
-
-                // Store new image
                 $path = $request->file('profile_picture')->store('profile_pictures', 'public');
                 $data['profile_picture'] = $path;
             }
 
-            // Update student
-            $student->update($data);
-            return response()->json(
-                [
-                    'student' => $student,
-                    'message' => 'Student updated successfully',
-                ],
-                200
-            );
+            // 3️⃣ Track changes for audit (exclude password)
+            $changes = [];
+            foreach ($data as $key => $value) {
+                if ($key === 'password') {
+                    continue; // skip password
+                }
+                if ($student->$key !== $value) {
+                    $changes[$key] = [
+                        'old' => $student->$key,
+                        'new' => $value
+                    ];
+                }
+            }
+
+            // 4️⃣ Update password if provided
+            if (!empty($data['password'])) {
+                $student->password = $data['password'];
+            }
+
+            // 5️⃣ Update other fields
+            $student->update(array_filter($data, fn($key) => $key !== 'password', ARRAY_FILTER_USE_KEY));
+
+            // 6️⃣ Fire event for audit + notifications
+            if (!empty($changes) || !empty($data['password'])) {
+                if ($student->email) {
+                    $identifier = $student->email;
+                } else {
+                    $identifier = $student->phone;
+                }
+
+                event(new UserActivityEvent(
+                    actor: $student,
+                    action: 'student_updated',
+                    subject: $student,
+                    description: "Student updated: {$student->firstname} {$student->lastname}, {$identifier}",
+                    changes: $changes
+                ));
+            }
+
+            // 7️⃣ Return response
+            return response()->json([
+                'student' => $student,
+                'message' => 'Student updated successfully',
+            ], 200);
 
         } catch (\Exception $error) {
             return response()->json([
@@ -366,7 +308,6 @@ class StudentController extends Controller
                 'message' => 'An error occurred while updating the student.',
             ], 500);
         }
-
     }
 
     /**
@@ -375,7 +316,6 @@ class StudentController extends Controller
     public function destroy(Student $student)
     {
         try {
-
             $student->delete();
             return response()->json(['message' => 'Student deleted successfully'], 200);
         } catch (\Exception $error) {
@@ -390,10 +330,53 @@ class StudentController extends Controller
      * Optionally, handle login or registration for the student.
      * Example: Using email and password authentication.
      */
+    // public function login(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'email' => 'required|email',
+    //         'password' => 'required|string',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'errors' => $validator->errors()
+    //         ], 400);
+    //     }
+
+    //     $credentials = $request->only('email', 'password');
+
+    //     if (Auth::guard('student')->attempt($credentials)) {
+
+    //         $student = Auth::guard('student')->user();
+
+    //         // Safety check
+    //         if (!$student || !$student->id) {
+    //             return response()->json([
+    //                 'message' => 'Something went wrong, user not authenticated properly.'
+    //             ], 500);
+    //         }
+
+    //         $student->tokens()->delete();
+    //         // generate token
+    //         $token = $student->createToken('student-token')->plainTextToken;
+
+    //         return response()->json([
+    //             'message' => 'Login successful',
+    //             'student' => $student,
+    //             'student-token' => $token,
+    //         ], 200);
+    //     }
+
+    //     return response()->json([
+    //         'message' => 'Invalid email or password'
+    //     ], 401);
+    // }
+
     public function login(Request $request)
     {
+        // 1️⃣ Validate input
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'identifier' => 'required', // email or phone
             'password' => 'required|string',
         ]);
 
@@ -403,34 +386,75 @@ class StudentController extends Controller
             ], 400);
         }
 
-        $credentials = $request->only('email', 'password');
+        $identifier = $request->input('identifier');
 
-        if (Auth::guard('student')->attempt($credentials)) {
+        // 2️⃣ Find student by email or phone
+        $student = Student::where('email', $identifier)
+            ->orWhere('phone', $identifier)
+            ->first();
 
-            $student = Auth::guard('student')->user();
-
-            // Safety check
-            if (!$student || !$student->id) {
-                return response()->json([
-                    'message' => 'Something went wrong, user not authenticated properly.'
-                ], 500);
-            }
-
-            $student->tokens()->delete();
-            // generate token
-            $token = $student->createToken('student-token')->plainTextToken;
-
+        if (!$student) {
             return response()->json([
-                'message' => 'Login successful',
-                'student' => $student,
-                'student-token' => $token,
-            ], 200);
+                'message' => 'No student found with the provided email or phone.'
+            ], 404);
         }
 
+        // 3️⃣ Check password
+        if (!Hash::check($request->password, $student->password)) {
+            return response()->json([
+                'message' => 'Invalid password.'
+            ], 401);
+        }
+
+        // 4️⃣ Delete old tokens and create new token
+        $student->tokens()->delete();
+        $token = $student->createToken('student-token')->plainTextToken;
+
+        // 5️⃣ Fire audit log & notification event
+        event(new UserActivityEvent(
+            actor: $student,
+            action: 'student_login',
+            subject: $student,
+            description: "Student logged in: {$student->firstname} {$student->lastname}, {$identifier}",
+            changes: [
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent()
+            ]
+        ));
+
+        // 6️⃣ Dispatch notifications: student + guardians + assigned adviser (if any)
+        $recipients = collect([$student]);
+
+        if ($student->assignedStaff) {
+            $recipients->push($student->assignedStaff);
+        }
+
+        if ($student->guardians && $student->guardians->count()) {
+            foreach ($student->guardians as $guardian) {
+                $recipients->push($guardian);
+            }
+        }
+
+        // Remove duplicates and notify
+        $recipients->unique(fn($user) => get_class($user) . ':' . $user->id)
+            ->each(function ($recipient) use ($student) {
+                NotificationManager::notify(
+                    recipient: $recipient,
+                    type: 'student_login',
+                    message: "Student {$student->firstname} {$student->lastname} logged in.",
+                    subject: $student
+                );
+            });
+
+        // 7️⃣ Return successful login response
         return response()->json([
-            'message' => 'Invalid email or password'
-        ], 401);
+            'message' => 'Login successful',
+            'student' => $student,
+            'student-token' => $token,
+        ], 200);
     }
+
+
 
     // resending email verification code
     public function resendCode(Request $request, TermiiService $termii)
@@ -539,32 +563,104 @@ class StudentController extends Controller
 
 
     //updates student profile picture
+    // public function updateProfilePicture(Request $request, $id)
+    // {
+    //     // Validate the image
+    //     $request->validate([
+    //         'profile_picture' => 'required|image|mimes:jpg,jpeg,png,gif|max:2048',
+    //     ]);
+
+    //     // Find student or return error
+    //     $student = Student::find($id);
+    //     if (!$student) {
+    //         return response()->json(['message' => 'Student not found'], 404);
+    //     }
+
+    //     // Delete old profile picture if exists
+    //     if ($student->profile_picture && Storage::disk('public')->exists($student->profile_picture)) {
+    //         Storage::disk('public')->delete($student->profile_picture);
+    //     }
+
+    //     // Store new image
+    //     $path = $request->file('profile_picture')->store('profile_pictures', 'public');
+
+    //     // Update database
+    //     $student->profile_picture = $path;
+    //     $student->save();
+
+    //     // Return response
+    //     return response()->json([
+    //         'message' => 'Profile picture updated successfully',
+    //         'profile_picture_url' => asset('storage/' . $path),
+    //     ], 200);
+    // }
+
     public function updateProfilePicture(Request $request, $id)
     {
-        // Validate the image
+        // 1️⃣ Validate the image
         $request->validate([
             'profile_picture' => 'required|image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
 
-        // Find student or return error
+        // 2️⃣ Find student
         $student = Student::find($id);
         if (!$student) {
             return response()->json(['message' => 'Student not found'], 404);
         }
 
-        // Delete old profile picture if exists
-        if ($student->profile_picture && Storage::disk('public')->exists($student->profile_picture)) {
-            Storage::disk('public')->delete($student->profile_picture);
+        // 3️⃣ Track old value for audit
+        $oldProfilePicture = $student->profile_picture;
+
+        // 4️⃣ Delete old profile picture if exists
+        if ($oldProfilePicture && Storage::disk('public')->exists($oldProfilePicture)) {
+            Storage::disk('public')->delete($oldProfilePicture);
         }
 
-        // Store new image
+        // 5️⃣ Store new image
         $path = $request->file('profile_picture')->store('profile_pictures', 'public');
 
-        // Update database
+        // 6️⃣ Update student
         $student->profile_picture = $path;
         $student->save();
 
-        // Return response
+        // 7️⃣ Fire audit + notification event
+        event(new UserActivityEvent(
+            actor: $student,
+            action: 'update_profile_picture',
+            subject: $student,
+            description: "Student updated profile picture",
+            changes: [
+                'profile_picture' => [
+                    'old' => $oldProfilePicture,
+                    'new' => $path,
+                ]
+            ]
+        ));
+
+        // 8️⃣ Notify student + adviser + guardians
+        $recipients = collect([$student]);
+
+        if ($student->assignedStaff) {
+            $recipients->push($student->assignedStaff);
+        }
+
+        if ($student->guardians && $student->guardians->count()) {
+            foreach ($student->guardians as $guardian) {
+                $recipients->push($guardian);
+            }
+        }
+
+        $recipients->unique(fn($user) => get_class($user) . ':' . $user->id)
+            ->each(function ($recipient) use ($student) {
+                NotificationManager::notify(
+                    recipient: $recipient,
+                    type: 'update_profile_picture',
+                    message: "Student {$student->firstname} {$student->lastname} updated profile picture.",
+                    subject: $student
+                );
+            });
+
+        // 9️⃣ Return response
         return response()->json([
             'message' => 'Profile picture updated successfully',
             'profile_picture_url' => asset('storage/' . $path),
@@ -572,11 +668,47 @@ class StudentController extends Controller
     }
 
 
+    /**
+     * Logout the authenticated student.
+     */
+    // public function logout(Request $request)
+    // {
+    //     $request->user()->currentAccessToken()?->delete();
+    //     return response()->noContent();
+    // }
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()?->delete();
+        $student = $request->user();
+
+        if (!$student) {
+            return response()->json([
+                'message' => 'No authenticated user found.'
+            ], 401);
+        }
+
+        // 1️⃣ Delete the current access token
+        $student->currentAccessToken()?->delete();
+
+        // 2️⃣ Fire audit log
+        event(new UserActivityEvent(
+            actor: $student,
+            action: 'student_logout',
+            subject: $student,
+            description: "Student logged out: {$student->firstname} {$student->lastname}"
+        ));
+
+        // 3️⃣ Send notification to student themselves (logout is personal)
+        NotificationManager::notify(
+            recipient: $student,
+            type: 'student_logout',
+            message: "You have successfully logged out.",
+            subject: $student
+        );
+
+        // 4️⃣ Return response
         return response()->noContent();
     }
+
 
 }
 
