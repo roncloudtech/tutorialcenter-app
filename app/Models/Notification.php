@@ -13,6 +13,7 @@ class Notification extends Model
         'subject_id',
         'type',
         'message',
+        'signature',
         'is_read',
     ];
 

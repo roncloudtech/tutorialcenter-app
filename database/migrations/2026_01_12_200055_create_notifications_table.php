@@ -20,10 +20,11 @@ return new class extends Migration {
 
             $table->string('type'); // action type, e.g., login, payment_made
             $table->text('message');
-            $table->boolean('is_read')->default(false);
+            $table->string('signature')->index(); // unique signature for idempotency
+            $table->boolean('is_read')->default(false); // read status
 
-            $table->timestamps();
-            $table->index(['notifiable_type', 'notifiable_id']);
+            $table->timestamps(); // created_at, updated_at
+            $table->index(['notifiable_type', 'notifiable_id']); // for querying notifications for a user
         });
     }
 
