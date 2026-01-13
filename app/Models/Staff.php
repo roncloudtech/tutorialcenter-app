@@ -64,4 +64,14 @@ class Staff extends Authenticatable
     {
         return $this->morphMany(Notification::class, 'notifiable');
     }
+
+    // In Student.php
+public function assignedStaff() {
+    return $this->belongsTo(Staff::class, 'staff_id');
+}
+
+public function guardians() {
+    return $this->belongsToMany(Guardian::class, 'guardian_student', 'student_id', 'guardian_id');
+}
+
 }

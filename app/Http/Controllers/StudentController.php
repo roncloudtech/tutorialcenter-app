@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\UserActivityEvent;
 use App\Mail\StudentEmailVerification;
 use App\Models\Student;
 use Illuminate\Http\Request;
@@ -17,6 +18,96 @@ class StudentController extends Controller
     /**
      * Store a newly created student in storage.
      */
+    // public function store(Request $request, TermiiService $termii)
+    // {
+    //     // 1️⃣ Validation
+    //     $validator = Validator::make($request->all(), [
+    //         'firstname' => 'required|string|max:255',
+    //         'lastname' => 'required|string|max:255',
+    //         'email' => 'nullable|email|unique:students,email',
+    //         'phone' => 'nullable|string|unique:students,phone',
+    //         'password' => 'required|string|min:8',
+    //         'gender' => 'nullable|string|in:Male,Female,Others',
+    //         'profile_picture' => 'nullable|string',
+    //         'date_of_birth' => 'nullable|date',
+    //         'location' => 'nullable|string',
+    //         'home_address' => 'nullable|string',
+    //         'department' => 'nullable|string',
+    //         'guardians_ids' => 'nullable|array',
+    //     ]);
+
+    //     if (!$request->email && !$request->phone) {
+    //         return response()->json([
+    //             'message' => 'Email or Phone is required.'
+    //         ], 422);
+    //     }
+
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'errors' => $validator->errors()
+    //         ], 400);
+    //     }
+
+    //     try {
+    //         // 2️⃣ Create the student
+    //         $verification_code = rand(100000, 999999);
+    //         $student = new Student;
+    //         $student->firstname = $request->input('firstname');
+    //         $student->lastname = $request->input('lastname');
+    //         $student->email = $request->input('email');
+    //         $student->phone = $request->input('phone');
+    //         $student->password = $request->input('password');
+    //         if($request->has('gender')) {
+    //             $student->gender = $request->input('gender');
+    //         }
+    //         $student->profile_picture = $request->input('profile_picture', null);
+    //         $student->date_of_birth = $request->input('date_of_birth', null);
+    //         $student->location = $request->input('location', null);
+    //         $student->home_address = $request->input('home_address', null);
+    //         $student->department = $request->input('department', null);
+    //         $student->guardians_ids = $request->input('guardians_ids', []);
+    //         $student->verification_code = $verification_code;
+
+    //         // ✅ Save first to get ID
+    //         $student->save();
+
+    //         // 3️⃣ Send verification code
+    //         if ($student->email) {
+    //             Mail::to($student->email)->send(new StudentEmailVerification($student));
+    //         } elseif ($student->phone) {
+    //             $smsResponse = $termii->sendSms(
+    //                 $student->phone,
+    //                 "Your verification code is $verification_code"
+    //             );
+
+    //             \Log::info('Termii SMS response', [
+    //                 'phone' => $student->phone,
+    //                 'response' => $smsResponse
+    //             ]);
+    //         }
+
+    //         // 4️⃣ Fire the event (audit + notification)
+    //         event(new UserActivityEvent(
+    //             actor: $student,
+    //             action: 'student_registered',
+    //             subject: $student,
+    //             description: "New student registered: {$student->firstname} {$student->lastname}"
+    //         ));
+
+    //         // 5️⃣ Return response
+    //         return response()->json([
+    //             'message' => 'Verification code sent.',
+    //             'student' => $student,
+    //         ], 201);
+
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'errors' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+
     public function store(Request $request, TermiiService $termii)
     {
         // Validation Student Registration
@@ -81,6 +172,14 @@ class StudentController extends Controller
                 ]);
             }
 
+            // Fire the event for audit + notification
+            event(new UserActivityEvent(
+                actor: $student,
+                action: 'student_registered',
+                subject: $student,
+                description: "New student registered: {$student->firstname} {$student->lastname}, {$student->email}"
+            ));
+
             return response()->json([
                 'message' => 'Verification code sent.',
                 'student' => $student,
@@ -91,6 +190,18 @@ class StudentController extends Controller
             ], 500);
         }
     }
+
+
+    /*
+     ****
+     */
+
+
+
+
+
+
+
 
     // Email Verification
     public function verify(Request $request)
@@ -238,7 +349,7 @@ class StudentController extends Controller
                 $path = $request->file('profile_picture')->store('profile_pictures', 'public');
                 $data['profile_picture'] = $path;
             }
-            
+
             // Update student
             $student->update($data);
             return response()->json(
@@ -322,7 +433,8 @@ class StudentController extends Controller
     }
 
     // resending email verification code
-    public function resendCode(Request $request, TermiiService $termii) {
+    public function resendCode(Request $request, TermiiService $termii)
+    {
         $email = $request->input('email');
         $phone = $request->input('phone');
 
