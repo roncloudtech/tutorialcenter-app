@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Notification;
+use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Laravel\Sanctum\HasApiTokens;
 
 class Student extends Authenticatable
 {
@@ -54,7 +54,8 @@ class Student extends Authenticatable
 
     protected $appends = ['profile_picture_url'];
 
-    public function getProfilePictureUrlAttribute () {
+    public function getProfilePictureUrlAttribute()
+    {
         return $this->profile_picture ? asset('storage/' . $this->profile_picture) : null;
     }
 
@@ -68,7 +69,14 @@ class Student extends Authenticatable
         return $this->hasMany(Payment::class);
     }
 
-    public function auditLogs() {
+    public function auditLogs()
+    {
         return $this->morphMany(AuditLog::class, 'actor');
     }
+
+    public function notifications()
+    {
+        return $this->morphMany(Notification::class, 'notifiable');
+    }
+
 }

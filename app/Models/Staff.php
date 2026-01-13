@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Notification;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -54,7 +55,13 @@ class Staff extends Authenticatable
         }
     }
 
-    public function auditLogs() {
+    public function auditLogs()
+    {
         return $this->morphMany(AuditLog::class, 'actor');
+    }
+
+    public function notifications()
+    {
+        return $this->morphMany(Notification::class, 'notifiable');
     }
 }

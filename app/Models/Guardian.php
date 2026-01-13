@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Notification;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -31,7 +32,7 @@ class Guardian extends Authenticatable
         'provider',
         'google_id',
     ];
-    
+
     protected $hidden = [
         'password',
         'remember_token',
@@ -54,8 +55,14 @@ class Guardian extends Authenticatable
         }
     }
 
-    public function auditLogs() {
+    public function auditLogs()
+    {
         return $this->morphMany(AuditLog::class, 'actor');
+    }
+
+    public function notifications()
+    {
+        return $this->morphMany(Notification::class, 'notifiable');
     }
 
 }
