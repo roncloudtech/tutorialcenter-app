@@ -34,3 +34,5 @@ return new class extends Migration
         Schema::dropIfExists('enrollments');
     }
 };
+
+// Testing my adjustment

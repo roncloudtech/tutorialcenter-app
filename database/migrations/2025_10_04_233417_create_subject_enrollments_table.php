@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('enrollment_id')->constrained('enrollments')->onDelete('cascade'); 
             $table->decimal('progress', 5,2)->nullable();
 
-            $table->softDeletes();
+            $table->softDeletes(); // deleted_at
             $table->timestamps();
         });
     }
@@ -31,3 +31,5 @@ return new class extends Migration
         Schema::dropIfExists('subject_enrollments');
     }
 };
+
+// testing my adjustment
