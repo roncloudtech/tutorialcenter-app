@@ -450,7 +450,7 @@ class StudentController extends Controller
         return response()->json([
             'message' => 'Login successful',
             'student' => $student,
-            'student-token' => $token,
+            'token' => $token,
         ], 200);
     }
 
