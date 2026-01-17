@@ -330,48 +330,6 @@ class StudentController extends Controller
      * Optionally, handle login or registration for the student.
      * Example: Using email and password authentication.
      */
-    // public function login(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'email' => 'required|email',
-    //         'password' => 'required|string',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'errors' => $validator->errors()
-    //         ], 400);
-    //     }
-
-    //     $credentials = $request->only('email', 'password');
-
-    //     if (Auth::guard('student')->attempt($credentials)) {
-
-    //         $student = Auth::guard('student')->user();
-
-    //         // Safety check
-    //         if (!$student || !$student->id) {
-    //             return response()->json([
-    //                 'message' => 'Something went wrong, user not authenticated properly.'
-    //             ], 500);
-    //         }
-
-    //         $student->tokens()->delete();
-    //         // generate token
-    //         $token = $student->createToken('student-token')->plainTextToken;
-
-    //         return response()->json([
-    //             'message' => 'Login successful',
-    //             'student' => $student,
-    //             'student-token' => $token,
-    //         ], 200);
-    //     }
-
-    //     return response()->json([
-    //         'message' => 'Invalid email or password'
-    //     ], 401);
-    // }
-
     public function login(Request $request)
     {
         // 1️⃣ Validate input
