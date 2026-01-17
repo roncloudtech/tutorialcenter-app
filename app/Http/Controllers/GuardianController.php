@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\UserActivityEvent;
+use App\Helpers\NotificationManager;
 use App\Mail\GuardianEmailVerification;
 use App\Models\Guardian;
 use Illuminate\Http\Request;
@@ -65,7 +67,7 @@ class GuardianController extends Controller
             $guardian->email = $request->input('email');
             $guardian->phone = $request->input('phone');
             $guardian->password = $request->input('password');
-            if($request->has('gender')) {
+            if ($request->has('gender')) {
                 $guardian->gender = $request->input('gender');
             }
             $guardian->profile_picture = $request->input('profile_picture');
@@ -196,37 +198,74 @@ class GuardianController extends Controller
      */
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => 'required|email',
+        // 1️⃣ Validate input
+        $validator = Validator::make($request->all(), [
+            'identifier' => 'required', // email or phone (future-proof)
             'password' => 'required|string',
         ]);
 
-        if (Auth::guard('guardian')->attempt($credentials)) {
-            $guardian = Auth::guard('guardian')->user();
-
-            // Make sure guardian is authenticated and saved
-            if (!$guardian || !$guardian->id) {
-                return response()->json([
-                    'message' => 'Something went wrong, user not authenticated properly.'
-                ], 500);
-            }
-
-            $guardian->tokens()->delete();
-            $token = $guardian->createToken('guardian-token')->plainTextToken;
-
+        if ($validator->fails()) {
             return response()->json([
-                'message' => 'Login successful',
-                'guardian' => $guardian,
-                'guardian-token' => $token,
-            ], 200);
+                'errors' => $validator->errors(),
+            ], 400);
         }
 
-        return response()->json(['message' => 'Invalid email or password'], 401);
+        $identifier = $request->input('identifier');
+
+        // 2️⃣ Find guardian by email (or phone if added later)
+        $guardian = Guardian::where('email', $identifier)
+            ->orWhere('phone', $identifier)
+            ->first();
+
+        if (!$guardian) {
+            return response()->json([
+                'message' => 'Invalid Login.',
+            ], 401);
+        }
+
+        // 3️⃣ Check password
+        if (!Hash::check($request->password, $guardian->password)) {
+            return response()->json([
+                'message' => 'Invalid Login.',
+            ], 401);
+        }
+
+        // 4️⃣ Delete old tokens and create new token
+        $guardian->tokens()->delete();
+        $token = $guardian->createToken('guardian-token')->plainTextToken;
+
+        // 5️⃣ Fire audit log & notification event
+        event(new UserActivityEvent(
+            actor: $guardian,
+            action: 'guardian_login',
+            subject: $guardian,
+            description: "Guardian logged in: {$guardian->firstname} {$guardian->lastname}, {$identifier}",
+            changes: [
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]
+        ));
+
+        // 6️⃣ Dispatch notifications (guardian only for now)
+        NotificationManager::notify(
+            recipient: $guardian,
+            type: 'guardian_login',
+            message: "Guardian {$guardian->firstname} {$guardian->lastname} logged in.",
+            subject: $guardian
+        );
+
+        // 7️⃣ Return successful login response
+        return response()->json([
+            'message' => 'Login successful',
+            'guardian' => $guardian,
+            'token' => $token,
+        ], 200);
     }
 
 
     // resending email verification code
-    public function resendCode(Request $request) {
+    public function resendCode(Request $request)
+    {
         $email = $request->input('email');
         $phone = $request->input('phone');
 

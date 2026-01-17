@@ -353,14 +353,14 @@ class StudentController extends Controller
 
         if (!$student) {
             return response()->json([
-                'message' => 'No student found with the provided email or phone.'
-            ], 404);
+                'message' => 'Invalid Login.'
+            ], 401);
         }
 
         // 3️⃣ Check password
         if (!Hash::check($request->password, $student->password)) {
             return response()->json([
-                'message' => 'Invalid password.'
+                'message' => 'Invalid Login.'
             ], 401);
         }
 
