@@ -213,9 +213,7 @@ class GuardianController extends Controller
         $identifier = $request->input('identifier');
 
         // 2️⃣ Find guardian by email (or phone if added later)
-        $guardian = Guardian::where('email', $identifier)
-            ->orWhere('phone', $identifier)
-            ->first();
+        $guardian = Guardian::where('email','=', $identifier)->orWhere('phone','=', $identifier)->first();
 
         if (!$guardian) {
             return response()->json([
